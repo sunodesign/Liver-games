@@ -371,12 +371,26 @@
   var jaVoice  = null;
   var primed   = false;
 
+  // 声の調整(かわいい声=高めピッチ)。数値を変えると声質が変わる
+  var SPEAK_PITCH = 1.6;   // 0〜2。大きいほど高く可愛い声
+  var SPEAK_RATE  = 1.05;  // 0.5〜2。話す速さ
+
   function pickVoice(){
     if(!canSpeak) return;
     var vs = window.speechSynthesis.getVoices() || [];
+    var ja = [];
     for(var i=0;i<vs.length;i++){
-      if(vs[i].lang && vs[i].lang.toLowerCase().indexOf("ja") === 0){ jaVoice = vs[i]; break; }
+      if(vs[i].lang && vs[i].lang.toLowerCase().indexOf("ja") === 0){ ja.push(vs[i]); }
     }
+    if(!ja.length) return;
+    // かわいい(女性)寄りの声を優先的に選ぶ
+    var prefer = ["kyoko","o-ren","oren","mizuki","haruka","nanami","sayaka","ami","google","siri"];
+    for(var k=0;k<prefer.length;k++){
+      for(var j=0;j<ja.length;j++){
+        if(ja[j].name && ja[j].name.toLowerCase().indexOf(prefer[k]) >= 0){ jaVoice = ja[j]; return; }
+      }
+    }
+    jaVoice = ja[0];
   }
   if(canSpeak){
     pickVoice();
@@ -396,18 +410,23 @@
     }catch(e){}
   }
 
-  function speakRank(rank){
+  // 任意のテキストを「かわいい声」で読み上げ
+  function speak(text){
     if(!soundOn || !canSpeak) return;
     try{
       // ※ iOSでは cancel() 直後の speak() が無視されるため cancel しない
-      var u = new SpeechSynthesisUtterance(SPEAK[rank] || rank);
+      var u = new SpeechSynthesisUtterance(text);
       u.lang = "ja-JP";
       if(jaVoice){ u.voice = jaVoice; }
-      u.rate = 1.0;
-      u.pitch = 1.0;
+      u.rate = SPEAK_RATE;
+      u.pitch = SPEAK_PITCH;
       u.volume = 1.0;
       window.speechSynthesis.speak(u);
     }catch(e){}
+  }
+
+  function speakRank(rank){
+    speak(SPEAK[rank] || rank);
   }
 
   function buildDeck(){
@@ -481,16 +500,19 @@
         elScore.textContent = score;
         elStreak.textContent = streak;
         setMessage("正解！ 🎉", "ch-win");
+        speak("せいかい！");           // 成功の声
         current = next;
         setTimeout(nextRound, 850);
       } else if(result === "draw"){
         setMessage("引き分け…もう一度！", "");
+        speak("ひきわけ！");           // 引き分けの声
         current = next;
         setTimeout(nextRound, 850);
       } else {
         streak = 0;
         elStreak.textContent = streak;
         setMessage("ハズレ… ゲームオーバー", "ch-lose");
+        speak("ざんねん！");           // 失敗の声
       }
     }, 500);
   }
