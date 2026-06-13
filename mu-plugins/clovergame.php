@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: Clover Game Embed
- * Description: [clover_*] ショートコードを /wp-content/uploads/ 内のHTMLファイル内容に置換 (ACFフィールド + 通常本文 + カスタムHTMLブロックの3経路対応)
- * Version: 1.9
+ * Description: [clover_*] ショートコードを /wp-content/uploads/ 内のHTMLファイル内容に置換 (ACFフィールド + 通常本文 + カスタムHTMLブロック + テーマ生出力の4経路対応)
+ * Version: 2.0
  * Author: Clover
  *
  * このファイルを /wp-content/mu-plugins/ にアップロードすると自動有効化されます
@@ -19,6 +19,12 @@
  *  - [clover_panel]    → Clover Panel Break (パネルゲーム)
  *  - [clover_highlow]  → ハイ&ロー (トランプ)
  *
+ * v2.0: テーマがメタボックス値などを get_post_meta() で「生のまま echo」
+ *       している箇所([clover_*] がそのまま文字表示される)に対応。
+ *       フロント表示時にページHTML全体を最後にスキャンし、残っている
+ *       [clover_*] をファイル内容へ置換する保険処理(出力バッファ)を追加。
+ *       これによりテーマ修正なしで、メタボックス欄に [clover_highlow] と
+ *       書くだけでゲームが表示される。
  * v1.9: 二重ロード時の致命的エラー(Cannot redeclare)を修正。
  *       PHPはトップレベルの名前付き関数をコンパイル時に登録するため、
  *       v1.7/1.8 の「function_exists なら return」ガードでは
@@ -111,4 +117,31 @@ if (!defined('CLOVER_GAME_EMBED_LOADED')) {
         }
         return $block_content;
     }, 10, 2);
+
+    /**
+     * (4) テーマが get_post_meta() 等で [clover_*] を「生のまま echo」している
+     *     箇所(メタボックス値など)への保険。
+     *     フロント表示のページHTML全体を最後にスキャンし、未処理で残っている
+     *     [clover_*] をファイル内容へ置換する。テーマ修正もメタキーも不要。
+     *
+     *     ※ ブロック/ショートコード/ACF 経由(1〜3)で既に置換済みの箇所には
+     *       [clover_*] は残っていないため二重展開は起きない。
+     *       管理画面・REST・AJAX では template_redirect が走らないので影響なし。
+     */
+    add_action('template_redirect', function () {
+        if (is_admin()) return;
+
+        ob_start(function ($html) {
+            if (!is_string($html) || strpos($html, '[clover_') === false) {
+                return $html;
+            }
+            foreach (clover_game_map() as $tag => $filename) {
+                $needle = '[' . $tag . ']';
+                if (strpos($html, $needle) !== false) {
+                    $html = str_replace($needle, clover_game_get_file($filename), $html);
+                }
+            }
+            return $html;
+        });
+    });
 }
