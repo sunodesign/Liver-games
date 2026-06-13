@@ -377,15 +377,44 @@
   // ===== 音声読み上げ(Web Speech API) =====
   var canSpeak = ("speechSynthesis" in window) && (typeof SpeechSynthesisUtterance !== "undefined");
   var soundOn  = true;
+  var jaVoice  = null;
+  var primed   = false;
+
+  function pickVoice(){
+    if(!canSpeak) return;
+    var vs = window.speechSynthesis.getVoices() || [];
+    for(var i=0;i<vs.length;i++){
+      if(vs[i].lang && vs[i].lang.toLowerCase().indexOf("ja") === 0){ jaVoice = vs[i]; break; }
+    }
+  }
+  if(canSpeak){
+    pickVoice();
+    // 音声リストが後から読み込まれる端末向け
+    window.speechSynthesis.onvoiceschanged = pickVoice;
+  }
+
+  // iOS等の自動再生制限を解除：最初のユーザー操作の中で無音を1回発話して起動
+  function primeSpeech(){
+    if(primed || !canSpeak) return;
+    primed = true;
+    try{
+      var u = new SpeechSynthesisUtterance(" ");
+      u.volume = 0;
+      u.lang = "ja-JP";
+      window.speechSynthesis.speak(u);
+    }catch(e){}
+  }
 
   function speakRank(rank){
     if(!soundOn || !canSpeak) return;
     try{
-      window.speechSynthesis.cancel();
+      // ※ iOSでは cancel() 直後の speak() が無視されるため cancel しない
       var u = new SpeechSynthesisUtterance(SPEAK[rank] || rank);
       u.lang = "ja-JP";
+      if(jaVoice){ u.voice = jaVoice; }
       u.rate = 1.0;
       u.pitch = 1.0;
+      u.volume = 1.0;
       window.speechSynthesis.speak(u);
     }catch(e){}
   }
@@ -440,6 +469,7 @@
   }
 
   function guess(isHigh){
+    primeSpeech();                     // 操作内で音声エンジンを起動(iOS対策)
     setButtons(false);
     var next = draw();
     renderCard(elNext, next);
@@ -484,7 +514,7 @@
 
   btnHigh.addEventListener("click", function(){ guess(true); });
   btnLow.addEventListener("click", function(){ guess(false); });
-  btnRestart.addEventListener("click", start);
+  btnRestart.addEventListener("click", function(){ primeSpeech(); start(); });
 
   // 読み上げ ON/OFF トグル
   if(btnSound){
@@ -498,8 +528,9 @@
         btnSound.textContent = soundOn ? "🔊 読み上げ ON" : "🔇 読み上げ OFF";
         if(!soundOn){
           window.speechSynthesis.cancel();
-        } else if(current){
-          speakRank(current.rank);       // ONにした合図に現在のカードを読む
+        } else {
+          primeSpeech();                 // 操作内で音声エンジンを起動(iOS対策)
+          if(current){ speakRank(current.rank); }  // ONにした合図に現在のカードを読む
         }
       });
     }
