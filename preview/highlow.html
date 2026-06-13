@@ -3,14 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="apple-mobile-web-app-capable" content="yes">
 <title>ハイ&ロー プレビュー</title>
-<style>
-  html,body{margin:0;min-height:100%;-webkit-text-size-adjust:100%;}
-  body{background:radial-gradient(circle at 50% 0%,#198754,#0f5132);
-       display:flex;align-items:center;justify-content:center;
-       padding:max(20px,env(safe-area-inset-top)) 16px max(20px,env(safe-area-inset-bottom));}
-</style>
+<style>html,body{margin:0;min-height:100%;}</style>
 </head>
 <body>
 <!-- Clover High & Low (ハイ&ロー) — inline embed fragment -->
@@ -50,13 +44,26 @@
   --ch-red:#d6336c;
   --ch-black:#212529;
   --ch-shadow:0 10px 30px rgba(0,0,0,.35);
+  --ch-top:100px;            /* ヘッダーとかぶる時はこの数値を増やす(例:140px) */
   font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;
-  display:flex;justify-content:center;
+  /* 背景を画面いっぱい(横幅フル)に広げる */
+  width:100vw;
+  max-width:100vw;
+  margin-left:calc(50% - 50vw);
+  margin-right:calc(50% - 50vw);
+  box-sizing:border-box;
+  background:radial-gradient(circle at 50% 0%,#198754,#0f5132);
+  min-height:60vh;
+  display:flex;
+  justify-content:center;
+  align-items:flex-start;
+  /* 上にヘッダー分の余白 */
+  padding:var(--ch-top) 16px 56px;
 }
 #clover-highlow *{box-sizing:border-box;}
 #clover-highlow .ch-game{
   width:100%;max-width:440px;
-  background:radial-gradient(circle at 50% 0%,#198754,#0f5132);
+  background:rgba(0,0,0,.18);
   border:1px solid rgba(255,255,255,.12);
   border-radius:20px;
   padding:24px 20px 28px;
