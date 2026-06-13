@@ -359,6 +359,18 @@
     "7":"7","8":"8","9":"9","10":"10"
   };
 
+  // ===== 音声ファイル(ElevenLabs等)設定 =====
+  // この場所に置いた mp3 を優先再生し、無ければ端末のTTSで読み上げる
+  var VOICE_BASE = "/wp-content/uploads/highlow-voice/";
+  var USE_CLIPS  = true;   // false にすると常に端末TTSを使う
+  // 読み上げキー → ファイル名(.mp3)
+  var CLIP = {
+    "A":"rank-a", "2":"rank-2", "3":"rank-3", "4":"rank-4", "5":"rank-5",
+    "6":"rank-6", "7":"rank-7", "8":"rank-8", "9":"rank-9", "10":"rank-10",
+    "J":"rank-j", "Q":"rank-q", "K":"rank-k",
+    "win":"win", "lose":"lose", "draw":"draw"
+  };
+
   var deck = [];
   var current = null;
   var score = 0, streak = 0, best = 0;
@@ -434,8 +446,43 @@
     }catch(e){}
   }
 
+  // 音声ファイル再生用プレイヤー(iOS対策で1個を使い回す)
+  var clipPlayer = null;
+  function getPlayer(){
+    if(!clipPlayer){
+      try{ clipPlayer = new Audio(); clipPlayer.preload = "auto"; }
+      catch(e){ clipPlayer = null; }
+    }
+    return clipPlayer;
+  }
+
+  // key の音声ファイルを再生。無い/失敗時は fallbackText を端末TTSで読む
+  function playClip(key, fallbackText){
+    if(!soundOn) return;
+    var name = USE_CLIPS ? CLIP[key] : null;
+    var player = name ? getPlayer() : null;
+    if(!name || !player){ speak(fallbackText); return; }
+
+    var fell = false;
+    function fb(){ if(fell) return; fell = true; speak(fallbackText); }
+    try{
+      player.onerror = fb;                       // 404・デコード失敗時はTTSへ
+      player.volume = 1.0;
+      player.src = VOICE_BASE + name + ".mp3";
+      player.currentTime = 0;
+      var p = player.play();
+      if(p && p.catch){
+        p.catch(function(err){
+          // 別の音で中断された場合(AbortError)は失敗扱いにしない
+          if(err && err.name === "AbortError") return;
+          fb();
+        });
+      }
+    }catch(e){ fb(); }
+  }
+
   function speakRank(rank){
-    speak(SPEAK[rank] || rank);
+    playClip(rank, SPEAK[rank] || rank);
   }
 
   function buildDeck(){
@@ -509,19 +556,19 @@
         elScore.textContent = score;
         elStreak.textContent = streak;
         setMessage("正解！ 🎉", "ch-win");
-        speak("せいかい！");           // 成功の声
+        playClip("win", "せいかい！");      // 成功の声
         current = next;
         setTimeout(nextRound, 850);
       } else if(result === "draw"){
         setMessage("引き分け…もう一度！", "");
-        speak("ひきわけ！");           // 引き分けの声
+        playClip("draw", "ひきわけ！");     // 引き分けの声
         current = next;
         setTimeout(nextRound, 850);
       } else {
         streak = 0;
         elStreak.textContent = streak;
         setMessage("ハズレ… ゲームオーバー", "ch-lose");
-        speak("ざんねん！");           // 失敗の声
+        playClip("lose", "ざんねん！");     // 失敗の声
       }
     }, 500);
   }
